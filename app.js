@@ -20,7 +20,14 @@ function setup(){
 }
 
 function draw(){
-  background(0,0,255);
+  background(0,0,0);
+  directionalLight(255,255,255,0,0,-1);
+  ambientLight(100);
+  fill(0,0,255);
+  push();
+  translate(BOXSIZE/-2, BOXSIZE/2)
+  plane(BOXSIZE * COLS + 20, BOXSIZE * ROWS + 20);
+  pop();
   noStroke();
   for(var col = 0; col < COLS; col++){
     for(var row = 0; row < board[col].length; row++){
