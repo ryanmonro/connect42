@@ -156,7 +156,6 @@ function clearBoard(){
   board = [];
   for(var col = 0; col < 7; col++){
     board.push([])
-    // board[col].push(0);
   }
 }
 
@@ -170,19 +169,40 @@ function coordsToNotes(input){
   return output;
 }
 
-var synth = new Tone.PolySynth({
-}).toMaster();
-synth.set("oscillator", {"type": "sine"});
-synth.set("volume", -12);
-synth.set("envelope", {decay: 0.2, sustain: 0.3, release: 0.1})
+var lsynth = new Tone.PolySynth(16);
+var rsynth = new Tone.PolySynth(16);
+var reverb = new Tone.Reverb(15).toMaster();
+var lpan = new Tone.Panner(-0.5).toMaster();
+var rpan = new Tone.Panner(0.5).toMaster();
+lsynth.connect(lpan);
+rsynth.connect(rpan);
+reverb.generate();
+lsynth.set("oscillator", {"type": "sine"});
+lsynth.set("volume", -18);
+lsynth.set("envelope", {decay: 0.2, sustain: 0.3, release: 0.1})
+rsynth.set("oscillator", {"type": "sine"});
+rsynth.set("volume", -18);
+rsynth.set("envelope", {decay: 0.2, sustain: 0.3, release: 0.1})
 
+function playNotes(time, notes){
+  var synth = turn ? lsynth : rsynth;
+  if (notes.length > 1) {
+    synth.connect(reverb);
+  }
+  synth.triggerAttackRelease(notes, "16n", time);
+  if (notes.length > 1) {
+    Tone.Draw.schedule(function(){
+      synth.disconnect(reverb);
+    }, time + Tone.Time("16n").toSeconds())
+  }
+}
 
 var loop = new Tone.Loop(time => {
   // var scale = [0, 3, 7, 11, 14, 18, 21]
   // col needs to return an array of coords that need to be played
   var result = playDisc() || [];
   result = coordsToNotes(result);
-  synth.triggerAttackRelease(result, "16n", time);
+  playNotes(time, result);
 }, "16n").start("8n");
 
 // the loops start when the Transport is started
