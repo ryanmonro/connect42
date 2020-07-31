@@ -2,8 +2,11 @@ const BOXSIZE = 40;
 const ROWS = 6;
 const COLS = 7;
 let board,
-    RED = true,
-    YELLOW = false,
+    EMPTY = -1,
+    RED = 0,
+    YELLOW = 1,
+    CONNECTED = 2,
+    winner = false,
     turn = RED,
     NORTHWEST = false,
     NORTHEAST = true; 
@@ -13,19 +16,22 @@ clearBoard();
 function setup(){
   createCanvas(640, 480, WEBGL);
   angleMode(DEGREES);
+  rectMode(CENTER);
 }
 
 function draw(){
   background(0,0,255);
-  rectMode(CENTER);
   noStroke();
   for(var col = 0; col < COLS; col++){
     for(var row = 0; row < board[col].length; row++){
       push();
-      if (board[col][row] == RED) {
+      var cell = board[col][row];
+      if (cell == RED) {
         fill(255,0,0);
-      } else {
+      } else if (cell == YELLOW){
         fill(250, 250, 0);
+      } else if (cell == CONNECTED) {
+        fill(250, 250, 250);
       }
       translate((BOXSIZE * COLS / -2) + BOXSIZE * col, (BOXSIZE * ROWS / 2) + BOXSIZE * -row);
       rotateX(90);
@@ -33,15 +39,20 @@ function draw(){
       pop();
     }
   }
-  
 }
 
-function playDisc(e){
+function playDisc(){
   var col,
       tries = 0,
-      choices = _.shuffle(_.range(0,COLS));
-  if(check()){
+      choices = _.shuffle(_.range(0,COLS)),
+      player = turn;
+  if(winner){
+    winner = false;
     clearBoard();
+    return;
+  }
+  if(check()){
+    winner = true;
     return;
   }
   do {
@@ -54,81 +65,76 @@ function playDisc(e){
   } 
   board[col].push(turn);
   turn = !turn;
+  return col;
 }
 
 
-// todo: return cell coords so we can use them to flash!
-// add cells to an array instead of returning true
-// deal with them at the end of the function 
 function check(){
   // this is hardcoded - needs edit if we change number of rows/columns/connects
   var limit = ROWS > COLS ? ROWS : COLS,
-    r, c, nw, ne, found = [];
+    nw, ne, found = [];
   // instead of three loops, just have one big one
   for(var n = 0; n < limit; n++){
     // check nth row
-    r = checkArray(getRow(n));
-    if (r != -1) {
-      console.log('row ' + n + ' pos ' + r + ' to ' + (r + 3));
-      return true;
-    }
-    
+    checkArrayCells(getRowCells(n), found);
     // check nth col
-    c = checkArray(getCol(n));
-    // iterate through possible subsets of column
-    if (c != -1) {
-      console.log('col ' + n + ' pos ' + c + ' to ' + (c + 3));
-      return true;
-    }
+    checkArrayCells(getColumnCells(n), found);
     // check nth diagonals
     if (n < 6) {
-      nw = checkArray(getDiag(n, NORTHWEST));
-      if (nw != -1) {
-        console.log('diag!')
-        return true;   
-      }
-      ne = checkArray(getDiag(n, NORTHEAST));
-      if (ne != -1) {
-        console.log('diag!')
-        return true;   
-      }
-    } 
+      checkArrayCells(getDiagCells(n, NORTHWEST), found);
+      checkArrayCells(getDiagCells(n, NORTHEAST), found);
+    }
+  }
+  if (found.length > 0) {
+    console.log(found, found.length);
+    for(var i = 0; i < found.length; i++){
+      var coords = found[i];
+      console.log(coords);
+      board[coords[0]][coords[1]] = CONNECTED;
+    }
+    return true;
   }
 }
 
-function checkArray(arr){
+function checkArrayCells(arr, output){
   for(var i = 0; i <= arr.length - 4; i++){
-    if (arr[i+0] != -1 && arr[i+0] == arr[i+1] && arr[i+1] == arr[i+2] && arr[i+2] == arr[i+3]) {
-      return i;
+    var a = getCell(arr[i]),
+        b = getCell(arr[i+1]),
+        c = getCell(arr[i+2]),
+        d = getCell(arr[i+3]);
+    if (a != -1 && a == b && b == c && c == d) {
+      output.push(arr[i], arr[i+1], arr[i+2], arr[i+3]);
     }
   }
-  return -1;
 }
 
-function getCol(index){
+function getColumnCells(index){
   var output = [];
-  var result;
   for(var row = 0; row < ROWS; row++){
-    if (typeof board[index] == 'undefined') {
-      result = -1;
-    } else {
-      result = typeof board[index][row] != 'undefined' ? board[index][row] : -1;
-    }
-    output.push(result);
+    var coord = [index, row];
+    output.push(coord);
   }
   return output;
 }
 
-function getRow(index){
+function getRowCells(index){
   var output = [];
   for(var col = 0; col < COLS; col++){
-    var result = typeof board[col][index] != 'undefined' ? board[col][index] : -1;
-    output.push(result);
+    var coord = [col, index];
+    output.push(coord);
   }
   return output;
 }
 
-function getDiag(idx, dir){
+function getCell(coords){
+  var col = coords[0], row = coords[1];
+  if (typeof board[col] == 'undefined' || typeof board[col][row] == 'undefined') {
+    return -1;
+  }
+  return board[col][row];
+}
+
+function getDiagCells(idx, dir){
   var nMax = idx < 3 ? 3 + idx : 8 - idx,
       col = idx < 2 ? 0 : idx - 2, 
       row = idx > 1 ? 5 : idx + 3, 
@@ -139,9 +145,8 @@ function getDiag(idx, dir){
       col = 6 - col;
     }
   for(var n = 0; n <= nMax; n++){
-    var cell = typeof board[col][row] != 'undefined' ? board[col][row] : -1;
-    output.push(cell);
-    debug += "[" + row + "," + col + "]";
+    var coord = [col, row];
+    output.push(coord);
     col += colDir;
     row--;
   }
@@ -152,7 +157,26 @@ function clearBoard(){
   board = [];
   for(var col = 0; col < 7; col++){
     board.push([])
+    // board[col].push(0);
   }
 }
 
-window.addEventListener('keydown', playDisc);
+var synth = new Tone.PolySynth({
+}).toMaster();
+synth.set("oscillator", {"type": "sine"});
+synth.set("volume", -12);
+synth.set("envelope", {decay: 0.2, sustain: 0.3, release: 0.1})
+
+
+var loop = new Tone.Loop(time => {
+  // var scale = [0, 3, 7, 11, 14, 18, 21]
+  var scale = [0, 2, 4, 6, 7, 9, 11]
+  // col needs to return an array of coords that need to be played
+  var col = playDisc() || 0;
+  synth.triggerAttackRelease(Tone.Midi("C4").transpose(scale[col]), "16n", time);
+}, "16n").start("8n");
+
+// the loops start when the Transport is started
+// Tone.Transport.start()
+
+// window.addEventListener('keydown', playDisc);
