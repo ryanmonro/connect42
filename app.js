@@ -51,12 +51,13 @@ function playDisc(){
     clearBoard();
     return;
   }
-  if(check()){
+  var result = check();
+  if(result){
     winner = true;
-    return;
+    return result;
   }
   do {
-    var col = choices[tries];
+    col = choices[tries];
     tries++;
   } while(board[col].length == ROWS && tries < COLS)
   if (tries >= COLS) {
@@ -65,7 +66,7 @@ function playDisc(){
   } 
   board[col].push(turn);
   turn = !turn;
-  return col;
+  return [[col, board[col].length - 1]];
 }
 
 
@@ -86,13 +87,11 @@ function check(){
     }
   }
   if (found.length > 0) {
-    console.log(found, found.length);
     for(var i = 0; i < found.length; i++){
       var coords = found[i];
-      console.log(coords);
       board[coords[0]][coords[1]] = CONNECTED;
     }
-    return true;
+    return found;
   }
 }
 
@@ -161,6 +160,16 @@ function clearBoard(){
   }
 }
 
+function coordsToNotes(input){
+  var output = [];
+  var scale = [0, 2, 4, 6, 7, 9, 11]
+  for(coord of input){
+    var col = coord[0], row = coord[1];
+    output.push(Tone.Midi("C2").transpose(scale[col] + 12 * row));
+  }
+  return output;
+}
+
 var synth = new Tone.PolySynth({
 }).toMaster();
 synth.set("oscillator", {"type": "sine"});
@@ -170,13 +179,13 @@ synth.set("envelope", {decay: 0.2, sustain: 0.3, release: 0.1})
 
 var loop = new Tone.Loop(time => {
   // var scale = [0, 3, 7, 11, 14, 18, 21]
-  var scale = [0, 2, 4, 6, 7, 9, 11]
   // col needs to return an array of coords that need to be played
-  var col = playDisc() || 0;
-  synth.triggerAttackRelease(Tone.Midi("C4").transpose(scale[col]), "16n", time);
+  var result = playDisc() || [];
+  result = coordsToNotes(result);
+  synth.triggerAttackRelease(result, "16n", time);
 }, "16n").start("8n");
 
 // the loops start when the Transport is started
-// Tone.Transport.start()
+Tone.Transport.start()  
 
-// window.addEventListener('keydown', playDisc);
+window.addEventListener('keydown', playDisc);
