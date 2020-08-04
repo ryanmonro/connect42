@@ -30,7 +30,7 @@ function draw(){
   pop();
   noStroke();
   for(var col = 0; col < COLS; col++){
-    for(var row = 0; row < board[col].length; row++){
+    for(var row = 0; row < ROWS; row++){
       push();
       var cell = board[col][row];
       if (cell == RED) {
@@ -39,10 +39,12 @@ function draw(){
         fill(250, 250, 0);
       } else if (cell == CONNECTED) {
         fill(250, 250, 250);
+      } else {
+        fill(0, 0, 0);
       }
       translate((BOXSIZE * COLS / -2) + BOXSIZE * col, (BOXSIZE * ROWS / 2) + BOXSIZE * -row);
       rotateX(90);
-      cylinder(BOXSIZE/2);
+      cylinder(BOXSIZE/2 - 3);
       pop();
     }
   }
@@ -169,9 +171,17 @@ function clearBoard(){
 function coordsToNotes(input){
   var output = [];
   var scale = [0, 2, 4, 6, 7, 9, 11]
+  var notes = []
   for(coord of input){
     var col = coord[0], row = coord[1];
-    output.push(Tone.Midi("C2").transpose(scale[col] + 12 * row));
+    var note = scale[col] + 12 * row;
+    if (!notes.includes(note)) {
+      notes.push(note)
+    }
+  }
+
+  for(note of notes){
+    output.push(Tone.Midi("C2").transpose(note));  
   }
   return output;
 }
@@ -196,7 +206,9 @@ function playNotes(time, notes){
   if (notes.length > 1) {
     synth.connect(reverb);
   }
-  synth.triggerAttackRelease(notes, "16n", time);
+  if (notes.length > 0) {
+    synth.triggerAttackRelease(notes, "16n", time);
+  }
   if (notes.length > 1) {
     Tone.Draw.schedule(function(){
       synth.disconnect(reverb);
@@ -205,12 +217,10 @@ function playNotes(time, notes){
 }
 
 var loop = new Tone.Loop(time => {
-  // var scale = [0, 3, 7, 11, 14, 18, 21]
-  // col needs to return an array of coords that need to be played
   var result = playDisc() || [];
   result = coordsToNotes(result);
   playNotes(time, result);
-}, "16n").start("8n");
+}, "8n").start("8n");
 
 // the loops start when the Transport is started
 Tone.Transport.start()  
